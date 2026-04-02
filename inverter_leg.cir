@@ -1,0 +1,21 @@
+* My First SPWM Inverter Leg
+
+** 1. High Voltage Industrial DC Bus
+V_bus Power_In 0 100V
+
+** 2. dsPIC Microcontroller Pin (5V Logic)
+V_mcu Gate 0 PULSE(0 5 0 1us 1us 10ms 20ms)
+
+** 3. The Power MOSFET (Controlled by the MCU Gate)
+S1 Power_In Load Gate 0 my_igbt
+.model my_igbt SW(Ron=0.1 Roff=1Meg Vt=2.5)
+
+** 4. The Industrial Motor/Load
+R_motor Load Mid 5
+L_motor Mid 0 10mH
+
+** 5. The Savior (Flyback Diode)
+D1 0 Load my_diode
+.model my_diode D
+
+.tran 0.1ms 60ms
