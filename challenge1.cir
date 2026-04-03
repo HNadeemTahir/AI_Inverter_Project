@@ -1,4 +1,0 @@
-*Task of sine AC voltage source (Peak 311V, 50Hz)
-V1 AC_Line 0 SINE(0 311 50)
-R1 AC_Line 0 2k
-.tran 0.1ms 60ms

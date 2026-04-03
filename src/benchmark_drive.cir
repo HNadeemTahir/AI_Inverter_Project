@@ -1,0 +1,49 @@
+* Inverter Digital Twin: TLP250H + FGY75T120SWD Benchmark
+* Phase 1: Single-Leg Switching Characterization
+
+** 1. Include Component Models
+.include "models/tlp250h.sub"
+.include "models/FGY75T120SWD.lib"
+
+** 2. Global Parameters
+.param V_bus=400V
+.param V_logic=5V
+.param V_gate=15V
+.param R_gate_ext=15
+
+** 3. Test Bench Circuit
+* Power Bus
+Vbus Power_In 0 {V_bus}
+
+* dsPIC PWM Signal (5V Logic)
+Vpwm_mcu MCU_PWM 0 PULSE(0 {V_logic} 10u 100n 100n 25u 50u) ; 20kHz PWM
+
+* TLP250H Isolated Driver
+* Nodes: Anode Cathode VCC VO GND
+Xdriver MCU_PWM 0 Gate_Supply Gate_Drive 0 TLP250H
+Vgate Gate_Supply 0 {V_gate}
+
+* FGY75T120SWD IGBT
+* Nodes: Collector Gate Emitter
+Xigbt1 Power_In Gate_Pin 0 FGY75T120SWD
+Rg Gate_Drive Gate_Pin {R_gate_ext}
+
+* Pulse Load (Simplified for characterization)
+Rload Power_In Power_In 1G ; Dummy high-Z
+
+** 4. Simulation Control
+.tran 10n 100u
+.options post=1
+.options reltol=0.01
+
+.control
+  run
+  set color0=white
+  set color1=black
+  plot v(Gate_Pin) title "IGBT Gate Voltage (Miller Plateau Check)"
+  plot v(MCU_PWM) title "MCU PWM Output"
+  
+  * Export data for Verification report
+  wrdata results/benchmark_data.txt v(Gate_Pin) v(MCU_PWM)
+.endc
+.end

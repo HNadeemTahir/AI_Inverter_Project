@@ -1,0 +1,37 @@
+* onsemi FGY75T120SWD Physical IGBT Model
+* 1200V, 75A High-Field Stop Trench IGBT
+* Nodes: Collector Gate Emitter
+.SUBCKT FGY75T120SWD 1 2 3
+
+* 1: Collector
+* 2: Gate
+* 3: Emitter
+
+** 1. Core Power Transistor (Behavioral)
+* Using an N-channel MOS as the core for switching logic
+M1 10 20 3 3 IGBT_CORE
+.model IGBT_CORE NMOS (LEVEL=1 VTO=5.5 KP=45 LAMBDA=0.01)
+
+** 2. Static Resistance & Voltage Drops
+* Collector-Emitter saturation voltage simulation
+* Vce(sat) ≈ 1.7V at 75A
+R_sat 1 10 0.022  ; Ron approximation
+
+** 3. Dynamic Capacitances (Datasheet Values)
+* Cies = 6331pF (Gate-Emitter + Gate-Collector)
+* Cres = 29.6pF  (Gate-Collector)
+* Coes = 234pF   (Collector-Emitter)
+
+C_ge 2 3 6.3n    ; Gate-Emitter Capacitance
+C_gc 2 1 30p     ; Gate-Collector (Miller) Capacitance
+C_ce 1 3 230p    ; Collector-Emitter Capacitance
+
+** 4. Gate Resistance (Internal)
+R_gate 2 20 5    ; Internal gate resistance
+
+** 5. Integrated Fast Recovery Diode (Body Diode)
+* Rated for 75A, Vf ≈ 1.5V
+D_body 3 1 Body_Diode
+.model Body_Diode D(IS=1.5n N=1.6 RS=0.012 TT=50n)
+
+.ENDS FGY75T120SWD

@@ -1,0 +1,31 @@
+* Toshiba TLP250H (Physical 8-Pin Layout)
+* Nodes: 1(NC) 2(Anode) 3(Cathode) 4(NC) 5(GND) 6(VO) 7(VO) 8(VCC)
+.SUBCKT TLP250H 1 2 3 4 5 6 7 8
+
+* --- 1. INPUT LED STAGE (Pins 2 & 3) ---
+* Current flows into Pin 2, returns through Pin 3
+Dled 2 3 LED_Model
+.model LED_Model D(IS=1p N=2.0 RS=5)
+
+* --- 2. ISOLATION & PROPAGATION DELAY (~150ns) ---
+* Step A: Sense the current turning into a Logic Signal (0V or 5V)
+B_Logic 10 0 V = (I(Dled) > 5m) ? 5 : 0
+
+* Step B: Create the 150ns delay using an RC filter
+R_delay 10 11 150
+C_delay 11 0 1n
+
+* Step C: Clean the signal using a comparator logic
+B_Buffered 12 0 V = (V(11) > 2.5) ? 5 : 0
+
+* --- 3. POWER OUTPUT STAGE (Totem-Pole) ---
+* Converts the 5V logic signal into the 15V Gate Drive supply
+B_Drive 13 5 V = (V(12) > 2.5) ? V(8,5) : 0
+
+* Output Impedance: Ensures the ±2.0A peak current limit
+R_out 13 6 7.5
+
+* Physically short pins 6 and 7 together
+R_short 6 7 0.001
+
+.ENDS

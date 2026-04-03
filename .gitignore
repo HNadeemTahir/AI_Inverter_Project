@@ -1,0 +1,30 @@
+# --- Global Standard NgSpice .gitignore ---
+
+# Exclude NgSpice Binaries / Software Folder
+Spice64/
+Spice64_64/
+bin/
+
+# Exclude Simulation Output Data (Large files)
+*.raw
+*.bin
+*.out
+*.log
+results/*.txt
+results/*.raw
+
+# Exclude Temporary & IDE files
+.DS_Store
+Thumbs.db
+*.tmp
+*.bak
+
+# Keep the models and source code
+!models/
+!src/
+!docs/
+!README.md
+!task.md
+!walkthrough.md
+!implementation_plan.md
+!.gitignore
