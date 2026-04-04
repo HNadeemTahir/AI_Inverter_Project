@@ -1,37 +1,30 @@
-* onsemi FGY75T120SWD Physical IGBT Model
-* 1200V, 75A High-Field Stop Trench IGBT
-* Nodes: Collector Gate Emitter
+* onsemi FGY75T120SWD - 1200V / 75A
+* Physical Trench Field-Stop IGBT Model
+* Nodes: 1(Collector) 2(Gate) 3(Emitter)
 .SUBCKT FGY75T120SWD 1 2 3
 
-* 1: Collector
-* 2: Gate
-* 3: Emitter
-
-** 1. Core Power Transistor (Behavioral)
-* Using an N-channel MOS as the core for switching logic
+* --- 1. CORE SWITCHING LOGICAL ---
 M1 10 20 3 3 IGBT_CORE
-.model IGBT_CORE NMOS (LEVEL=1 VTO=5.5 KP=45 LAMBDA=0.01)
+.model IGBT_CORE NMOS (LEVEL=1 VTO=5.5 KP=45)
 
-** 2. Static Resistance & Voltage Drops
-* Collector-Emitter saturation voltage simulation
-* Vce(sat) ≈ 1.7V at 75A
-R_sat 1 10 0.022  ; Ron approximation
+* --- 2. STATIC CHARACTERISTICS (Vce_sat) ---
+* Internal resistance to create 1.7V Saturation drop
+R_sat 1 10 0.022
 
-** 3. Dynamic Capacitances (Datasheet Values)
-* Cies = 6331pF (Gate-Emitter + Gate-Collector)
-* Cres = 29.6pF  (Gate-Collector)
-* Coes = 234pF   (Collector-Emitter)
+* --- 3. DYNAMIC CAPACITANCES (Datasheet Values) ---
+* These define your switching speed and heat
+C_ge 2 3 6.3n    ; Gate-Emitter (Cies approx)
+C_gc 2 1 30p     ; Gate-Collector (Miller/Cres)
+C_ce 1 3 230p    ; Collector-Emitter (Coes)
 
-C_ge 2 3 6.3n    ; Gate-Emitter Capacitance
-C_gc 2 1 30p     ; Gate-Collector (Miller) Capacitance
-C_ce 1 3 230p    ; Collector-Emitter Capacitance
+* --- 4. INTERNAL GATE RESISTANCE ---
+R_gate 2 20 6.5   ; Internal polysilicon resistance (6.5 Ohms)
 
-** 4. Gate Resistance (Internal)
-R_gate 2 20 5    ; Internal gate resistance
-
-** 5. Integrated Fast Recovery Diode (Body Diode)
+* --- 5. INTEGRATED BODY DIODE (Datasheet Values) ---
 * Rated for 75A, Vf ≈ 1.5V
-D_body 3 1 Body_Diode
+* tt=50n (Reverse Recovery Time)
+D_body 3 1 Body_Diode 
 .model Body_Diode D(IS=1.5n N=1.6 RS=0.012 TT=50n)
 
 .ENDS FGY75T120SWD
+
