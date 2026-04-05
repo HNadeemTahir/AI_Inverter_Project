@@ -1,0 +1,119 @@
+* =========================================================================
+* V4.1 FULL H-BRIDGE INVERTER - DIGITAL TWIN MASTER
+* High-Fidelity 400V DC-Link / 10A Load Validation
+* =========================================================================
+
+* --- 1. LIBRARY INCLUDES (Global) ---
+.INCLUDE "e:\Google Anti Gravity NgSpice\models\tlp250h.sub"
+.INCLUDE "e:\Google Anti Gravity NgSpice\models\FGY75T120SWD.lib"
+
+* --- 2. GLOBAL POWER & BUS ---
+* Nodes: [400_Bus] -> [400_Filtered] -> [0 (GND)]
+V_DC_Link      400_Bus       0               400V
+V_12V_Bias     12V_Bias_Int  0               12V
+R_Bias_ESR     12V_Bias_Int  12V_Bias        0.1
+R_Bus_ESR      400_Bus       400_Filtered    0.05
+
+* --- 3. SPWM CONTROL (True Unipolar Logic - Matches Spwm.c) ---
+
+* A. The Reference Brain (Centered Sine 0.5V +/- 0.389V)
+V_Ref_Sine  Sine_V  0  SINE(0.5 0.389 50)
+
+* B. The 16kHz Carrier (Triangle Wave)
+V_Carrier   Tri_V   0  PULSE(0 1 0 31.25u 31.25u 10n 62.5u)
+
+* C. Unipolar Decision Logic (Smoothed 100ns edges for stability)
+B_Pos_Half  Pos_H   0  V = (V(Sine_V) > 0.5) ? (V(Sine_V)-0.5)*2 : 0
+B_PWM_HS_A  PWM_HS_A 0 V = (V(Pos_H) > V(Tri_V)) ? 5 : 0
+B_PWM_LS_A  PWM_LS_A 0 V = (V(Pos_H) > V(Tri_V)) ? 0 : 5
+
+B_Neg_Half  Neg_H   0  V = (V(Sine_V) < 0.5) ? (0.5-V(Sine_V))*2 : 0
+B_PWM_HS_B  PWM_HS_B 0 V = (V(Neg_H) > V(Tri_V)) ? 5 : 0
+B_PWM_LS_B  PWM_LS_B 0 V = (V(Neg_H) > V(Tri_V)) ? 0 : 5
+
+* Input Safety Pull-downs
+R_PD_LS_A      PWM_LS_A      0               10k
+R_PD_HS_A      PWM_HS_A      0               10k
+R_PD_LS_B      PWM_LS_B      0               10k
+R_PD_HS_B      PWM_HS_B      0               10k
+
+* =========================================================================
+* SECTION 4: LEG A CONSTRUCTION (Left Side)
+* =========================================================================
+
+* Stage 4A: Low-Side Drive (Leg A)
+R_LS_LED_A     PWM_LS_A      LS_Anode_A      330
+X_LS_Dvr_A     NC_5 LS_Anode_A 0 NC_6 0      LS_VO_A LS_VO_A 12V_Bias TLP250H
+R_LS_ON_A      LS_VO_A       LS_Gate_A       15
+R_LS_OFF_A     LS_VO_A       LS_G_Net_A      5.6
+D_LS_Fst_A     LS_Gate_A     LS_G_Net_A      D_1N4148
+R_LS_PD_A      LS_Gate_A     0               10k
+D_LS_Znr_A     0             LS_Gate_A       D_BZT52C15
+X_LS_IGBT_A    Phase_A       LS_Gate_A 0     FGY75T120SWD
+
+* Stage 4B: High-Side Drive (Leg A)
+D_bt_A         12V_Bias      VCC_HS_A        D_UF4007
+C_bt_bulk_A    VCC_HS_A      Phase_A         47u
+C_bt_hf_A      VCC_HS_A      Phase_A         0.1u
+R_HS_LED_A     PWM_HS_A      HS_Anode_A      330
+X_HS_Dvr_A     NC_7 HS_Anode_A 0 NC_8 Phase_A HS_VO_A HS_VO_A VCC_HS_A TLP250H
+R_HS_ON_A      HS_VO_A       HS_Gate_A       15
+R_HS_OFF_A     HS_VO_A       HS_G_Net_A      5.6
+D_HS_Fst_A     HS_Gate_A     HS_G_Net_A      D_1N4148
+R_HS_PD_A      HS_Gate_A     Phase_A         10k
+D_HS_Znr_A     Phase_A       HS_Gate_A       D_BZT52C15
+X_HS_IGBT_A    400_Filtered  HS_Gate_A Phase_A FGY75T120SWD
+
+* =========================================================================
+* SECTION 5: LEG B CONSTRUCTION (Right Side)
+* =========================================================================
+
+* Stage 5A: Low-Side Drive (Leg B)
+R_LS_LED_B     PWM_LS_B      LS_Anode_B      330
+X_LS_Dvr_B     NC_1 LS_Anode_B 0 NC_2 0      LS_VO_B LS_VO_B 12V_Bias TLP250H
+R_LS_ON_B      LS_VO_B       LS_Gate_B       15
+R_LS_OFF_B     LS_VO_B       LS_G_Net_B      5.6
+D_LS_Fst_B     LS_Gate_B     LS_G_Net_B      D_1N4148
+R_LS_PD_B      LS_Gate_B     0               10k
+D_LS_Znr_B     0             LS_Gate_B       D_BZT52C15
+X_LS_IGBT_B    Phase_B       LS_Gate_B 0     FGY75T120SWD
+
+* Stage 5B: High-Side Drive (Leg B)
+D_bt_B         12V_Bias      VCC_HS_B        D_UF4007
+C_bt_bulk_B    VCC_HS_B      Phase_B         47u
+C_bt_hf_B      VCC_HS_B      Phase_B         0.1u
+R_HS_LED_B     PWM_HS_B      HS_Anode_B      330
+X_HS_Dvr_B     NC_3 HS_Anode_B 0 NC_4 Phase_B HS_VO_B HS_VO_B VCC_HS_B TLP250H
+R_HS_ON_B      HS_VO_B       HS_Gate_B       15
+R_HS_OFF_B     HS_VO_B       HS_G_Net_B      5.6
+D_HS_Fst_B     HS_Gate_B     HS_G_Net_B      D_1N4148
+R_HS_PD_B      HS_Gate_B     Phase_B         10k
+D_HS_Znr_B     Phase_B       HS_Gate_B       D_BZT52C15
+X_HS_IGBT_B    400_Filtered  HS_Gate_B Phase_B FGY75T120SWD
+
+* =========================================================================
+* SECTION 6: DIFFERENTIAL LOAD & SIMULATION
+* =========================================================================
+* --- 8. LC FILTER & AC OUTPUT (High-Fidelity Dual-Coil) ---
+* Leg A Filter
+L_Filter_A    Phase_A       Node_A_Temp     3m 
+R_ESR_A       Node_A_Temp   AC_Node_A       0.1
+
+* Leg B Filter
+L_Filter_B    Phase_B       Node_B_Temp     3m 
+R_ESR_B       Node_B_Temp   AC_Node_B       0.1
+
+* 10uF Pure Sine Capacitor with 0.2 Ohm ESR (Damping)
+C_Filter      AC_Node_A     C_Node_Temp     10u
+R_C_ESR       C_Node_Temp   AC_Node_B       0.2
+
+* The Resistance Load (40 Ohms = 10A Load)
+R_Output_Load AC_Node_A     AC_Node_B       40
+
+.model D_1N4148   D(Is=2.6n N=1.8 Rs=0.5 Tt=11n)
+.model D_BZT52C15 D(Is=1.4n N=1.1 Bv=15 Ibv=1m Rs=1)
+.model D_UF4007   D(Is=1p   N=1.5 Rs=0.1 Tt=50n)
+
+.OPTIONS   abstol=1e-6 reltol=0.01 vntol=1e-4 chgtol=1e-14 method=gear
+.TRAN 1u 40m UIC
+.END
