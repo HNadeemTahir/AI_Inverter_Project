@@ -42,9 +42,9 @@
 
 
 * =========================================================================
-*  SECTION 2 : PRIMARY DC POWER STAGE (400V Solar/Battery Bus)
+*  SECTION 2 : PRIMARY DC POWER STAGE (400V DC Bus)
 * =========================================================================
-*  V_DC_Link  : Main DC bus (solar panels or battery bank via MPPT)
+*  V_DC_Link  : Main DC bus (direct solar panel input, DC-DC boost stage planned)
 *  R_Bus_ESR  : Internal resistance for high-frequency damping
 *  12V_Bias   : Auxiliary supply for TLP250H gate drivers
 * -------------------------------------------------------------------------

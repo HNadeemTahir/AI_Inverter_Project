@@ -1,6 +1,6 @@
 # ⚡ Inverter Digital Twin (dsPIC30F2010 + FGY75T120SWD)
 
-Professional High-Fidelity Simulation & Modeling of a 220V/50Hz Solar Hybrid Inverter. This project serves as a **Digital Twin** for hardware validation, bridging the gap between firmware (dsPIC) and physical power silicon behavior.
+Professional High-Fidelity Simulation & Modeling of a 220V/50Hz Off-Grid Pure Sine Wave Inverter with ATS Grid Sharing. This project serves as a **Digital Twin** for hardware validation, bridging the gap between firmware (dsPIC) and physical power silicon behavior.
 
 ---
 
@@ -119,7 +119,7 @@ plot v(SNS_V_FB) v(SNS_V_DELAYED)         * ZMPT101B delay
 ---
 
 ## 👨‍💻 Author
-**Nadeem Tahir** — Senior Automation & Power Electronics Engineer  
-*13+ years industrial automation experience | dsPIC firmware specialist*
+**Nadeem Tahir** — Embedded Systems & Power Electronics Engineer
 
-*Simulation development assisted by AI-powered engineering tools.*
+Designs and builds production-grade inverters and motor drives from schematic to firmware. Leverages AI-augmented engineering workflows to accelerate development across multiple MCU platforms (dsPIC, PIC, STM32, ESP32).
+
