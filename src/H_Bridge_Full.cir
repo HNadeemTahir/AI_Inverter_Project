@@ -1,5 +1,5 @@
 * =========================================================================
-*  H-BRIDGE INVERTER DIGITAL TWIN  |  Version 6.0 (Production Release)
+*  H-BRIDGE INVERTER DIGITAL TWIN  |  Version 6.1 (Dead-Time Protection)
 * =========================================================================
 *  Author      : Nadeem Tahir (Senior Automation & Power Electronics Engineer)
 *  Tools       : NgSpice 46, AI-assisted simulation development
@@ -13,13 +13,14 @@
 *  Includes PI voltage regulation with ZMPT101B sensor delay modeling.
 *
 *  FEATURES:
-*   [1] Physical IGBT Model     : Fuji FGY75T120SWD (1200V/75A)
+*   [1] Physical IGBT Model     : onsemi FGY75T120SWD (1200V/75A)
 *   [2] Isolated Gate Drivers   : Toshiba TLP250H (with safety network)
 *   [3] Closed-Loop PI Control  : Kp=0.1, Ki_eff=0.5 (continuous-time)
 *   [4] ZMPT101B Sensor Delay   : 200us RC lag (real-world parity)
 *   [5] Inductive Motor Load    : R=20 Ohm, L=100mH (series model)
 *   [6] Gate Safety Network     : 10k pull-downs, 15V Zener clamps
 *   [7] Bootstrap Supply        : UF4007 + 47uF bulk + 0.1uF HF bypass
+*   [8] Dead-Time Protection    : ~2us safety gap (mirrors dsPIC DTCON1)
 *
 *  FIRMWARE REFERENCE:
 *   - Spwm.c   : Unipolar SPWM with THI injection
@@ -29,6 +30,7 @@
 *  KNOWN LIMITATIONS:
 *   - limit() function not supported in NgSpice 46 B-sources
 *   - sdt() integrator function not available, replaced with G+C model
+*   - .PARAM variables NOT usable inside B-source expressions (hardcode values)
 *   - Peak ripple on inductive loads is physical (motor back-EMF)
 * =========================================================================
 
@@ -39,7 +41,7 @@
 .INCLUDE "e:\Google Anti Gravity NgSpice\models\tlp250h.sub"
 .INCLUDE "e:\Google Anti Gravity NgSpice\models\FGY75T120SWD.lib"
 .OPTIONS   abstol=1e-6 reltol=0.01 vntol=1e-4 chgtol=1e-14 method=gear
-
+* DT_OFFSET = 0.05 (hardcoded below; .PARAM not supported in B-source expressions)
 
 * =========================================================================
 *  SECTION 2 : PRIMARY DC POWER STAGE (400V DC Bus)
@@ -81,17 +83,24 @@ C_I_Accum      SIG_I_TERM    0               0.1       ic=0
 R_I_Bleed      SIG_I_TERM    0               1G
 B_PI_Sum       SIG_PI_CORR   0               V = (V(SIG_ERR)*0.1) + V(SIG_I_TERM)
 
-* 3D. UNIPOLAR SPWM MODULATION
+* 3D. UNIPOLAR SPWM MODULATION WITH DEAD-TIME PROTECTION
+*     Dead-time is implemented via triangle offset comparison:
+*       HS turns ON only when: modulation > triangle + DT_OFFSET
+*       LS turns ON only when: modulation < triangle - DT_OFFSET
+*       Dead zone (both OFF): triangle - DT_OFFSET < mod < triangle + DT_OFFSET
+*     This mirrors the dsPIC30F2010 DTCON1 register hardware protection.
+*     DT_OFFSET=0.05 creates ~2us dead-time at 16kHz (62.5us period).
+*
 *     Positive half-cycle: Leg A switches at 16kHz, Leg B clamped LOW
 *     Negative half-cycle: Leg B switches at 16kHz, Leg A clamped LOW
 *     PI correction is added to the sine reference before comparison
 B_Pos_Half     Pos_H         0               V = ((V(Sine_V)+V(SIG_PI_CORR)) > 0.5) ? (V(Sine_V)+V(SIG_PI_CORR)-0.5)*2 : 0
-B_PWM_HS_A     PWM_HS_A      0               V = (V(Pos_H) > V(Tri_V)) ? 5 : 0
-B_PWM_LS_A     PWM_LS_A      0               V = (V(Pos_H) > V(Tri_V)) ? 0 : 5
+B_PWM_HS_A     PWM_HS_A      0               V = (V(SIG_Fault) > 2.5) ? 0 : ((V(Pos_H) > V(Tri_V) + 0.05) ? 5 : 0)
+B_PWM_LS_A     PWM_LS_A      0               V = (V(SIG_Fault) > 2.5) ? 0 : ((V(Pos_H) < V(Tri_V) - 0.05) ? 5 : 0)
 
 B_Neg_Half     Neg_H         0               V = ((V(Sine_V)+V(SIG_PI_CORR)) < 0.5) ? (0.5-(V(Sine_V)+V(SIG_PI_CORR)))*2 : 0
-B_PWM_HS_B     PWM_HS_B      0               V = (V(Neg_H) > V(Tri_V)) ? 5 : 0
-B_PWM_LS_B     PWM_LS_B      0               V = (V(Neg_H) > V(Tri_V)) ? 0 : 5
+B_PWM_HS_B     PWM_HS_B      0               V = (V(SIG_Fault) > 2.5) ? 0 : ((V(Neg_H) > V(Tri_V) + 0.05) ? 5 : 0)
+B_PWM_LS_B     PWM_LS_B      0               V = (V(SIG_Fault) > 2.5) ? 0 : ((V(Neg_H) < V(Tri_V) - 0.05) ? 5 : 0)
 
 * 3E. INPUT SAFETY: PWM Signal Pull-Downs
 *     Ensures PWM signals default to LOW during startup/reset
@@ -130,7 +139,8 @@ R_HS_OFF_A     HS_VO_A       HS_G_Net_A      5.6
 D_HS_Fst_A     HS_Gate_A     HS_G_Net_A      D_1N4148
 R_HS_PD_A      HS_Gate_A     Phase_A         10k
 D_HS_Znr_A     Phase_A       HS_Gate_A       D_BZT52C15
-X_HS_IGBT_A    400_Filtered  HS_Gate_A Phase_A FGY75T120SWD
+V_SENSE_HS_A   400_Filtered  Col_HS_A        0V
+X_HS_IGBT_A    Col_HS_A      HS_Gate_A Phase_A FGY75T120SWD
 
 
 * =========================================================================
@@ -210,7 +220,60 @@ C_ZMPT_Delay   SNS_V_DELAYED 0               100n  ic=0.5
 
 
 * =========================================================================
-*  SECTION 9 : COMPONENT MODELS (Discrete Semiconductor Library)
+*  SECTION 9 : SHORT CIRCUIT PROTECTION (CT + INT0 Hardware Topology)
+* =========================================================================
+*  Models physical hardware: CT -> Rectifier -> Comparator -> INT0 Latch.
+*  Triggers at 50A primary current (50V across 1500-ohm burden).
+* -------------------------------------------------------------------------
+
+* 9A. CURRENT TRANSFORMER (CT) + RECTIFIER (1A Primary = 1V Secondary)
+B_CT_Rect      V_CT_Sec      0    V = abs(i(L_Filter_A))
+
+* 9B. HARDWARE COMPARATOR (Pre-Divider equivalent 50V = 50A trip)
+B_COMP         SIG_COMP_TRIP 0    V = (V(V_CT_Sec) > 50) ? 5 : 0
+
+* 9C. INT0 MCU LATCH (Fault latches instantly when comparator trips)
+G_INT0_LATCH   0    SIG_INT0_CAP    SIG_COMP_TRIP 0    0.1
+C_INT0         SIG_INT0_CAP    0    1u    ic=0
+R_INT0_BLD     SIG_INT0_CAP    0    1G
+
+* 9D. DIGITAL FAULT FLAG (Mimics SPWM_Stop() execution on INT0)
+B_INT0_FLAG    SIG_Fault     0    V = (V(SIG_INT0_CAP) > 0.5) ? 5 : 0
+
+* 9E. PHYSICAL SHORT CIRCUIT TEST
+*     Disabled by default (1000ms). To run physical fault test, change 1000m to 25m.
+S_SHORT        OUT_A    OUT_B    SC_CTRL 0    SW_SC
+V_SC_CTRL      SC_CTRL  0        PULSE(0 5 1000m 1n 1n 15m 100)
+.model SW_SC SW(VT=2.5 RON=0.1 ROFF=1G)
+
+
+* =========================================================================
+*  SECTION 10 : ELECTRO-THERMAL DYNAMICS (IGBT High-Side A)
+* =========================================================================
+*  Translating Thermal Physics to SPICE Electrical equivalents:
+*  Power=Amps, Temp=Volts, Thermal_Mass=Farads, Thermal_Resistance=Ohms
+
+* 10A. MEASURE INSTANTANEOUS POWER (Exact V_ce × I_collector, switching & conduction)
+B_IGBT_Power   0  Thermal_Power_In   I = abs(V(Col_HS_A, Phase_A) * i(V_SENSE_HS_A))
+
+* 10B. SILICON JUNCTION TO CASE (Internal IGBT Package)
+R_Junction    Thermal_Power_In    Case_Temp     0.21
+C_Junction    Thermal_Power_In    0             0.05
+
+* 10C. THERMAL PASTE (Case to Heatsink, TO-247 with thermal grease)
+R_Paste       Case_Temp           Heatsink_Temp 0.24
+
+* 10D. MASSIVE ALUMINUM HEATSINK
+R_Heatsink    Heatsink_Temp       Ambient_Temp  1.0
+C_Heatsink    Heatsink_Temp       0             10.0
+
+* 10E. AMBIENT WEATHER TEMPERATURE (45 °C Ambient Air)
+V_Ambient     Ambient_Temp        0             45
+.ic V(Thermal_Power_In)=45 V(Case_Temp)=45 V(Heatsink_Temp)=45
+
+
+* =========================================================================
+*  SECTION 11 : COMPONENT MODELS (Discrete Semiconductor Library)
 * =========================================================================
 .model D_1N4148   D(Is=2.6n N=1.8 Rs=0.5 Tt=11n)
 .model D_BZT52C15 D(Is=1.4n N=1.1 Bv=15 Ibv=1m Rs=1)
@@ -218,18 +281,29 @@ C_ZMPT_Delay   SNS_V_DELAYED 0               100n  ic=0.5
 
 
 * =========================================================================
-*  SECTION 10 : SIMULATION CONTROL
+*  SECTION 12 : SIMULATION CONTROL & VERIFICATION SCRIPTS
 * =========================================================================
-*  Step size = 1us (captures 16kHz PWM with 62 points per cycle)
-*  Duration  = 40ms (2 complete 50Hz cycles for steady-state analysis)
-*  UIC       = Use Initial Conditions (skip DC operating point)
+*  Default duration is 60ms for steady-state thermal and harmonic analysis.
+*  For fault validation, adjust V_SC_CTRL pulse time in Section 9E to 25ms.
 *
-*  PLOTTING COMMANDS (run in NgSpice console after simulation):
-*    plot v(OUT_A, OUT_B)                      -> Output voltage waveform
-*    plot v(OUT_A, OUT_B) i(V_Meter)*20        -> Voltage + Current (scaled)
-*    plot v(Sine_V) v(SNS_V_DELAYED)           -> Reference vs Feedback
-*    plot v(SIG_ERR) v(SIG_PI_CORR)            -> PI controller internals
-*    plot v(SNS_V_FB) v(SNS_V_DELAYED)         -> ZMPT101B delay effect
+*  NGSPICE VERIFICATION PLOTS:
+*
+*  1. Modulation State Crossover
+*     plot v(pwm_hs_a) v(pwm_ls_a)+6 v(pwm_hs_b)+12 v(pwm_ls_b)+18 xlimit 19m 21m title "SPWM State Crossover"
+*
+*  2. Dead-Time Physical Validation
+*     plot v(pwm_hs_a) v(pwm_ls_a) xlimit 9.00m 9.20m title "Dead-Time Validation"
+*
+*  3. DC Bus Energy Recovery (Freewheeling)
+*     plot i(V_DC_Link) title "DC Bus Energy Flow"
+*
+*  4. Electro-Thermal Junction Ripple
+*     plot v(Thermal_Power_In) v(Case_Temp) v(Heatsink_Temp) title "Junction Thermal Ripple"
+*
+*  5. Short Circuit Protection (Requires V_SC_CTRL set to 25ms)
+*     plot abs(i(L_Filter_A)) v(SIG_Fault)*10 title "Hardware SC Auto-Shutdown" xlimit 24m 28m
+*
+
 * -------------------------------------------------------------------------
-.TRAN 1u 40m UIC
+.TRAN 1u 60m UIC
 .END

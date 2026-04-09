@@ -1,30 +1,23 @@
-# --- Global Standard NgSpice .gitignore ---
+# Internal planning documents
+github_portfolio_strategy.md
 
-# Exclude NgSpice Binaries / Software Folder
+# Large simulation output files
+results/benchmark.raw
+results/benchmark_data.txt
+results/h_bridge_v3_results.txt
+
+# Temporary screenshots
+results/Screenshot*.png
+
+# Firmware source (separate repository)
+Inverter project code/
+
+# NgSpice installation (not part of project)
 Spice64/
-Spice64_64/
-bin/
 
-# Exclude Simulation Output Data (Large files)
-*.raw
-*.bin
-*.out
-*.log
-results/*.txt
-results/*.raw
-
-# Exclude Temporary & IDE files
-.DS_Store
-Thumbs.db
-*.tmp
+# IDE and system files
+.gemini/
 *.bak
-
-# Keep the models and source code
-!models/
-!src/
-!docs/
-!README.md
-!task.md
-!walkthrough.md
-!implementation_plan.md
-!.gitignore
+*.swp
+Thumbs.db
+.DS_Store
