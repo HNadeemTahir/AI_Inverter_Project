@@ -7,6 +7,8 @@
 *  Simulator   : NgSpice 46+ (Spice64)
 *  Hardware    : dsPIC30F2010 @ 16kHz SPWM
 * -------------------------------------------------------------------------
+.param THI_ENABLE = 1  ; 1 = THI ON (injects 150Hz), 0 = THI OFF (pure sine)
+* -------------------------------------------------------------------------
 *  DESCRIPTION:
 *  High-fidelity closed-loop simulation of a single-phase H-Bridge
 *  inverter driving an inductive motor load (20 Ohm / 100mH).
@@ -66,7 +68,7 @@ R_Bias_ESR     12V_Bias_Int  12V_Bias        0.1
 * 3A. REFERENCE SIGNAL: 50Hz Sine Wave
 *     Centered at 0.5V with 0.389V amplitude
 *     Maps to: 0.5V = 0V output, 0.889V = +311V, 0.111V = -311V
-V_Ref_Sine     Sine_V        0               SINE(0.5 0.389 50)
+B_Ref_Sine     Sine_V        0               V = '0.5 + 0.389 * (sin(2*3.14159*50*time) + {THI_ENABLE} * 0.1666 * sin(2*3.14159*150*time))'
 
 * 3B. CARRIER SIGNAL: 16kHz Triangle Wave
 *     Period = 62.5us (matches dsPIC PTPER register)
@@ -218,12 +220,6 @@ B_SNS_V_FB     SNS_V_FB      0               V = (V(OUT_A, OUT_B) * 0.00125) + 0
 R_ZMPT_Delay   SNS_V_FB      SNS_V_DELAYED   2k
 C_ZMPT_Delay   SNS_V_DELAYED 0               100n  ic=0.5
 
-* Helper: Differential output voltage for .meas extraction
-B_V_Diff   MEAS_VOUT   0   V = V(OUT_A) - V(OUT_B)
-B_P_Load   MEAS_POWER  0   V = V(OUT_A, OUT_B) * i(V_Meter)
-B_P_DC     MEAS_DC_PWR 0   V = V(400_Bus) * i(V_DC_Link)
-
-
 
 * =========================================================================
 *  SECTION 9 : SHORT CIRCUIT PROTECTION (CT + INT0 Hardware Topology)
@@ -309,18 +305,16 @@ V_Ambient     Ambient_Temp        0             45
 *  5. Short Circuit Protection (Requires V_SC_CTRL set to 25ms)
 *     plot abs(i(L_Filter_A)) v(SIG_Fault)*10 title "Hardware SC Auto-Shutdown" xlimit 24m 28m
 *
+*  6. Third Harmonic Injection (THI) Flattening
+*     plot v(Sine_V) title "THI vs Fundamental Reference"
+*
 
 * -------------------------------------------------------------------------
 .TRAN 1u 60m UIC
 
-.meas TRAN V_out_rms RMS v(MEAS_VOUT) FROM=20m TO=60m
-.meas TRAN V_out_peak MAX v(MEAS_VOUT) FROM=20m TO=60m
-.meas TRAN I_load_peak MAX i(V_Meter) FROM=20m TO=60m
-.meas TRAN I_load_rms RMS i(V_Meter) FROM=20m TO=60m
-.meas TRAN P_load_avg AVG v(MEAS_POWER) FROM=20m TO=60m
-.meas TRAN P_dc_input AVG v(MEAS_DC_PWR) FROM=20m TO=60m
-.meas TRAN Tj_max MAX v(Thermal_Power_In) FROM=20m TO=60m
-.meas TRAN Tj_avg AVG v(Thermal_Power_In) FROM=20m TO=60m
-
+.control
+run
+plot v(Sine_V) title "THI vs Fundamental Reference"
+.endc
 
 .END
