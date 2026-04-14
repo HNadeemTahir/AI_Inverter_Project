@@ -1,11 +1,23 @@
 * =========================================================================
-*  H-BRIDGE INVERTER DIGITAL TWIN  |  Version 6.3 (DT Compensation)
+*  H-BRIDGE INVERTER DIGITAL TWIN  |  Version 6.5 (Advanced Modulation)
 * =========================================================================
-*  Author      : Nadeem Tahir (Senior Automation & Power Electronics Engineer)
+*  Author      : Nadeem Tahir (Embedded Systems & Power Electronics Engineer)
 *  Tools       : NgSpice 46
-*  Date        : 13 April 2026
+*  Date        : 14 April 2026
 *  Simulator   : NgSpice 46+ (Spice64)
 *  Hardware    : dsPIC30F2010 @ 16kHz SPWM
+* -------------------------------------------------------------------------
+*  MODULATION STRATEGY SWITCHES
+*  Used to benchmark hardware compensation vs. mathematical THI injection.
+*
+*  Strategy Matrix [THI_ENABLE, DT_COMP_ENABLE]:
+*  [0, 0] = Bare SPWM (Worst voltage output, highest THD)
+*  [0, 1] = Base SPWM + Dead-Time comp (Industry standard)
+*  [1, 0] = THI (Flat Top) + No DT compensation
+*  [1, 1] = Ultimate Combined Strategy (Highest efficiency & DC utilization)
+*
+.PARAM THI_ENABLE     = 1  ; 1=ON (150Hz Injection), 0=OFF (Pure Sine)
+.PARAM DT_COMP_ENABLE = 1  ; 1=ON (Current-Direction Sens), 0=OFF
 * -------------------------------------------------------------------------
 *  DESCRIPTION:
 *  High-fidelity closed-loop simulation of a single-phase H-Bridge
@@ -21,9 +33,10 @@
 *   [6] Gate Safety Network     : 10k pull-downs, 15V Zener clamps
 *   [7] Bootstrap Supply        : UF4007 + 47uF bulk + 0.1uF HF bypass
 *   [8] Dead-Time Protection    : ~2us safety gap (mirrors dsPIC DTCON1)
-*   [9] DT Compensation         : Current-direction dependent (tanh sensor)
-*   [10] Automated .meas Metrics : V_rms, I_peak, Power, Efficiency, Tj
-*   [11] Python Batch Automation : run_simulation.py (subprocess pipeline)
+*   [9] DT Compensation         : Current-direction dependent (Toggled via PARAM)
+*   [10] Third Harmonic Inject  : Flat-top modulation (Toggled via PARAM)
+*   [11] Automated .meas Metrics : V_rms, I_peak, Power, Efficiency, Tj
+*   [12] Python Batch Automation : run_simulation.py (subprocess pipeline)
 *
 *  FIRMWARE REFERENCE:
 *   - Spwm.c   : Unipolar SPWM with THI injection
@@ -66,10 +79,11 @@ R_Bias_ESR     12V_Bias_Int  12V_Bias        0.1
 *  Signal flow: Reference -> Error -> PI Controller -> Modulation Index
 * -------------------------------------------------------------------------
 
-* 3A. REFERENCE SIGNAL: 50Hz Sine Wave
-*     Centered at 0.5V with 0.389V amplitude
-*     Maps to: 0.5V = 0V output, 0.889V = +311V, 0.111V = -311V
-V_Ref_Sine     Sine_V        0               SINE(0.5 0.389 50)
+* 3A. REFERENCE SIGNAL: 50Hz Sine Wave (with optional THI)
+*     Centered at 0.5V with 0.389V amplitude base.
+*     If THI_ENABLE=1, adds 150Hz component at 1/6th amplitude to flatten peak,
+*     allowing higher modulation index for better DC-bus utilization.
+B_Ref_Sine     Sine_V        0               V = '0.5 + 0.389 * (sin(2*3.14159*50*time) + {THI_ENABLE} * 0.1666 * sin(2*3.14159*150*time))'
 
 * 3B. CARRIER SIGNAL: 16kHz Triangle Wave
 *     Period = 62.5us (matches dsPIC PTPER register)
@@ -88,10 +102,10 @@ B_PI_Sum       SIG_PI_CORR   0               V = (V(SIG_ERR)*0.1) + V(SIG_I_TERM
 
 * 3D. DEAD-TIME COMPENSATION (Current-Direction Dependent)
 *     Senses load current direction via V_Meter
-*     Adds/subtracts compensation to modulation signal
+*     If DT_COMP_ENABLE=1, adds/subtracts compensation to modulation signal
 *     DT_COMP = 0.05 (matches DT_OFFSET used in PWM comparison)
 *     tanh() creates a smooth +1/-1 switch to avoid discontinuities
-B_DT_Comp  DT_COMP_V  0  V = 0.05 * tanh(100 * i(V_Meter))
+B_DT_Comp  DT_COMP_V  0  V = '{DT_COMP_ENABLE} * 0.05 * tanh(100 * i(V_Meter))'
 
 
 * 3E. UNIPOLAR SPWM MODULATION WITH DEAD-TIME PROTECTION (with DT Compensation)

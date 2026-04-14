@@ -1,0 +1,50 @@
+# Changelog
+
+All notable changes to this project are documented in this file.
+
+---
+
+## [V6.5] - 2026-04-14 (Advanced Modulation Test Bench)
+- Integrated Third Harmonic Injection (1/6th, 150Hz) into master simulation
+- Added global .PARAM switches (THI_ENABLE, DT_COMP_ENABLE) for strategy benchmarking
+- Documented 4-state modulation strategy matrix in netlist header
+- Removed redundant H_Bridge_THI_Experimental.cir (merged into master)
+- Repository cleanup: removed scratch files and 71MB raw data dumps
+
+## [V6.3] - 2026-04-13 (Dead-Time Compensation + Python Automation)
+- Added current-direction dependent dead-time compensation using tanh() sensor
+- Added 8 automated .meas measurement directives for steady-state extraction
+- Created run_simulation.py for headless batch-mode NgSpice execution
+- Created data_factory.py for parametric V_DC sweep with CSV export
+- Standardized all section numbering and comment headers
+
+## [V6.1] - 2026-04-08 (Dead-Time Protection + Thermal Model)
+- Implemented ~2us dead-time gap mirroring dsPIC DTCON1 register
+- Added Foster RC electro-thermal network (datasheet-verified parameters)
+- Added CT-based short circuit protection with INT0 fault latch
+- Verified 50Hz thermal ripple at IGBT junction node
+
+## [V5.0] - 2026-04-05 (Closed-Loop PI Control)
+- Implemented analog-equivalent PI voltage controller (Kp=0.1, Ki_eff=0.5)
+- Added ZMPT101B sensor delay model (200us RC lag)
+- Verified reference tracking under inductive motor load
+
+## [V4.0] - 2026-04-03 (Full H-Bridge + LC Filter)
+- Expanded from half-bridge to full H-bridge topology
+- Added 3mH/10uF LC output filter with ESR damping
+- Implemented unipolar SPWM with zero-crossing leg crossover
+
+## [V3.0] - 2026-03-28 (Physical IGBT Integration)
+- Replaced ideal switches with onsemi FGY75T120SWD IGBT model
+- Added TLP250H isolated gate driver subcircuit (150ns propagation delay)
+- Implemented gate safety network (Zener clamp, pull-down, bootstrap)
+
+## [V2.0] - 2026-03-24 (Half-Bridge with Ideal Switches)
+- Single half-bridge leg with ideal voltage-controlled switches
+- Basic SPWM carrier comparison logic
+- Initial load testing with resistive load
+
+## [V1.0] - 2026-03-21 (Project Initialization)
+- Repository creation and NgSpice environment setup
+- Initial subcircuit library structure (models/ directory)
+- First benchmark simulation tests
