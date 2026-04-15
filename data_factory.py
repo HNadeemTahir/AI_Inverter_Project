@@ -8,7 +8,7 @@ import time
 # ---------------------------------------------------------
 THI_STATES = [0, 1]              # 0=Pure Sine, 1=150Hz Flat Top
 DT_COMP_STATES = [0, 1]          # 0=Standard, 1=Current-Direction active
-VOLTAGE_STEPS = range(350, 460, 10)  # 350V to 450V in 10V steps
+VOLTAGE_STEPS = range(350, 452, 2)  # 350V to 450V in 2V steps (204 Simulations)
 
 CIRCUIT_ORIGINAL = os.path.join("src", "H_Bridge_Full.cir")
 CIRCUIT_TEMP = os.path.join("src", "H_Bridge_Temp.cir")
@@ -33,7 +33,7 @@ dt_comp_pattern = re.compile(r'(\.PARAM\s+DT_COMP_ENABLE\s*=\s*)\d+', re.IGNOREC
 # ---------------------------------------------------------
 dataset = []
 
-print("🚀 Starting 3D Data Factory Grid Search (44 Simulations)...\n")
+print("🚀 Starting 3D Data Factory Grid Search (204 Simulations)...\n")
 start_time = time.time()
 
 # Read the "Master Template" circuit

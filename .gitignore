@@ -1,23 +1,19 @@
-# Internal planning documents
-github_portfolio_strategy.md
-
-# Large simulation output files
-results/benchmark.raw
-results/benchmark_data.txt
-results/h_bridge_v3_results.txt
-
-# Temporary screenshots
-results/Screenshot*.png
-
-# Firmware source (separate repository)
-Inverter project code/
-
-# NgSpice installation (not part of project)
+# Protect Intellectual Property (Firmware Source Code & Binaries)
+Inverter project C code/
 Spice64/
+*.c
+*.h
+*.hex
+*.elf
+*.map
+*.o
+*.d
+*.cof
 
-# IDE and system files
-.gemini/
-*.bak
-*.swp
-Thumbs.db
-.DS_Store
+# Python Caches
+__pycache__/
+*.pyc
+
+# IDEs
+.vscode/
+.idea/
