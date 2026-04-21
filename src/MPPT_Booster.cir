@@ -1,0 +1,130 @@
+* =========================================================================
+* 4kW MPPT DC-DC Boost Converter — Closed-Loop Digital Twin
+* Controller: dsPIC30F2010 (Feed-Forward + PI)
+* Output: 380V DC Link
+* Simulator: NgSpice 44
+* =========================================================================
+
+.include ../models/STGW60H65DFB.lib
+.include ../models/STTH3006D.lib
+.include ../models/FOD3150.sub
+
+* =========================================================================
+* TEST PROFILE CONFIGURATION (Uncomment one profile at a time)
+* =========================================================================
+
+* [PROFILE 1] 120V Input / 1500W Load (Lower Boundary — 3-Panel String)
+*.PARAM V_IN = 120.0
+*.PARAM R_LOAD = 96.27
+*.PARAM RAMP_START = 0.398
+
+* [PROFILE 2] 250V Input / 3000W Load (Nominal — 5-Panel String)
+*.PARAM V_IN = 250.0
+*.PARAM R_LOAD = 48.13
+*.PARAM RAMP_START = 0.830
+
+* [PROFILE 3] 350V Input / 4000W Load (Upper Boundary — 8-Panel String)
+.PARAM V_IN = 350.0
+.PARAM R_LOAD = 36.10
+.PARAM RAMP_START = 1.162
+
+* --- Global Constants ---
+.PARAM V_TARGET = 380.0        ; DC Bus target voltage
+.PARAM V_TARGET_ADC = 1.262    ; Target in ADC scale (380V × 10k / 3.01M)
+
+* =========================================================================
+* STAGE 1: PV INPUT & SOFT-START PRE-CHARGE
+* =========================================================================
+V_PV IN_RAW 0 DC {V_IN}
+
+* Pre-charge relay control (relay closes at t = 20ms)
+V_Relay_CMD RELAY_CTRL 0 PWL(0 0, 19.9m 0, 20m 5)
+R_Soft IN_RAW IN_SOFT 50
+S_Relay IN_RAW IN_SOFT RELAY_CTRL 0 S_RELAY_MODEL
+.model S_RELAY_MODEL SW(Ron=0.01 Roff=1Meg Vt=2.5)
+
+C_IN IN_SOFT 0 470u IC={V_IN}
+
+* =========================================================================
+* STAGE 2: BOOST POWER STAGE
+* =========================================================================
+L1 IN_SOFT BOOST_MID 500u
+R_DCR BOOST_MID BOOST_NODE 0.05
+
+* Parallel IGBTs (2 × STGW60H65DFB, 650V/60A each)
+XQ1 BOOST_NODE GATE_DRIVE 0 STGW60H65DFB
+XQ2 BOOST_NODE GATE_DRIVE 0 STGW60H65DFB
+
+* Boost diode and output capacitor
+D1 BOOST_NODE V_DC_OUT STTH3006D
+C_OUT V_DC_OUT 0 880u IC={V_IN}
+
+* =========================================================================
+* STAGE 3: ISOLATED GATE DRIVER (FOD3150)
+* =========================================================================
+V_AUX_20V AUX_20V 0 DC 20V
+X_FOD PWM_MCU_OUT 0 0 GATE_DRIVE_RAW AUX_20V FOD3150
+
+* Gate resistor network (2 × 22 Ohm in parallel = 11 Ohm effective)
+Rg GATE_DRIVE_RAW GATE_DRIVE 11
+
+* =========================================================================
+* STAGE 4: OUTPUT LOAD & SEQUENCING
+* =========================================================================
+R_Load_Real LOAD_NODE 0 {R_LOAD}
+
+* Inverter load contactor (closes at t = 140ms after bus is stable)
+S_Load V_DC_OUT LOAD_NODE LOAD_CTRL 0 S_RELAY_MODEL
+V_Load_Ctrl LOAD_CTRL 0 PULSE(0 5 140m 1u 1u 400m 800m)
+
+* =========================================================================
+* STAGE 5: DC BUS VOLTAGE SENSING
+* =========================================================================
+* Resistive divider: 3 × 1M Ohm series / 10k Ohm to ground
+R_HV_Block V_DC_OUT V_SENSE_RAW 3Meg
+R_LV V_SENSE_RAW 0 10k
+
+* AMC1311 isolation amplifier (modeled as unity-gain buffer)
+E_AMC1311 V_SENSE_ISO 0 V_SENSE_RAW 0 1.0
+
+* =========================================================================
+* STAGE 6: CLOSED-LOOP PI CONTROLLER (20kHz)
+* =========================================================================
+
+* 6.1  PWM carrier (20kHz sawtooth)
+V_Carrier CARRIER 0 PULSE(0 1 0 49u 1u 1n 50u)
+
+* 6.2  Soft-start voltage ramp (20ms → 150ms, from Vin to 380V)
+V_Soft_Target RAMP_NODE 0 PWL(0 '{RAMP_START}', 20m '{RAMP_START}', 150m 1.262, 500m 1.262)
+
+* 6.3  Error signal (gated by relay — zero error before relay closes)
+B_Err ERR 0 V = (V(RAMP_NODE) - V(V_SENSE_ISO)) * V(RELAY_CTRL)
+
+* 6.4  Integral path (Ki = 0.005, clamped [0, 0.90])
+G_Int 0 INT_NODE ERR 0 0.005
+C_Int INT_NODE 0 10u
+R_Int INT_NODE 0 1Meg
+B_Clamp INT_CLAMPED 0 V = V(INT_NODE) > 0.90 ? 0.90 : (V(INT_NODE) < 0.0 ? 0.0 : V(INT_NODE))
+
+* 6.5  Feed-forward: D_ff = 1 − Vin / (RAMP_adc × 301)
+B_FF FF_DUTY 0 V = V(RAMP_NODE) > 0.1 ? (1.0 - V(IN_SOFT)/(V(RAMP_NODE)*301)) : 0.0
+
+* 6.6  Combined output: Feed-Forward + PI (Kp = 0.2)
+B_PI_Raw PI_RAW 0 V = V(FF_DUTY) + 0.2 * V(ERR) + V(INT_CLAMPED)
+
+* 6.7  Duty cycle hard limits [0.00, 0.90]
+B_PI_Safety PI_SAFE 0 V = V(PI_RAW) > 0.90 ? 0.90 : (V(PI_RAW) < 0.0 ? 0.0 : V(PI_RAW))
+
+* 6.8  PWM comparator (interlocked with relay status)
+B_PWM PWM_MCU_OUT 0 V = (V(PI_SAFE) > V(CARRIER) && V(RELAY_CTRL) > 0.5) ? 3.3 : 0.0
+
+* =========================================================================
+* SIMULATION DIRECTIVES
+* =========================================================================
+.options savecurrents
+.control
+  tran 10u 200ms 0 100ns uic
+  wrdata results.txt v(IN_SOFT) v(V_DC_OUT) v(PWM_MCU_OUT) i(L1)
+  quit
+.endc
+.end

@@ -1,0 +1,17 @@
+* Trench Field Stop IGBT STGW60H65DFB (650V / 60A)
+* Behavioral model for high speed switching
+.subckt STGW60H65DFB C G E
+* C=Collector, G=Gate, E=Emitter
+* Input Capacitance (Cies)
+Cge G E 3.5n
+* Miller Capacitance (Cres)
+Cgc G C 200p
+* Body Diode (if co-packaged)
+Dbody E C D_IGBT_FWD
+* Simplified active region switch
+B1 C E I = (V(G,E) > 6.0) ? (V(G,E)-6.0)*20 * (V(C,E)-1.5) : 1e-9
+* Series resistance to match Vce(sat)
+Rc C C_internal 0.01
+
+.MODEL D_IGBT_FWD D(IS=1e-12 RS=0.015 N=1.0 BV=650)
+.ends STGW60H65DFB

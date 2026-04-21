@@ -1,0 +1,3 @@
+* Fast Recovery Diode STTH3006D (600V 30A)
+* Behavioral match for Boost Converter applications
+.MODEL STTH3006D D(IS=1e-11 RS=0.02 N=1.5 TT=35n CJO=150p VJ=0.6 M=0.5 BV=600 IBV=10u)

@@ -1,0 +1,12 @@
+* Isolated Gate Driver FOD3150
+* Simplified behavioral model
+.subckt FOD3150 ANODE CATHODE VE VO VCC
+* Input LED threshold sensing
+B_input IN_NET 0 V = (V(ANODE, CATHODE) > 1.2) ? 1.0 : 0.0
+* Propagation delay (150ns) via RC filter
+R_delay IN_NET IN_DLY 1500
+C_delay IN_DLY 0 100p
+* Output Totem Pole Buffer
+B_out VO_internal VE V = (V(IN_DLY) > 0.5) ? (V(VCC, VE) - 1.5) : 0.0
+R_out VO_internal VO 5
+.ends FOD3150
