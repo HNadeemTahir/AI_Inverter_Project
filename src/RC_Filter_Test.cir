@@ -1,0 +1,40 @@
+* =========================================================================
+*  LEADING EDGE BLANKING (LEB) — RC Filter Propagation Delay Analysis
+*  Version 9.0
+* =========================================================================
+*  Author      : Nadeem Tahir (Embedded Systems & Power Electronics Engineer)
+*  Tools       : NgSpice 46 (Windows 64-bit)
+*  Date        : 27 April 2026
+*  Hardware    : INA181A2 Current Sense → 1kΩ + 470pF → UC3843 Pin 3
+* -------------------------------------------------------------------------
+*  PURPOSE:
+*  Measures the propagation delay of the Leading Edge Blanking RC filter
+*  placed between the INA181A2 output and UC3843 Pin 3 (ISENSE).
+*
+*  During IGBT turn-on, parasitic inductance and capacitance create a
+*  100–200ns current spike that can falsely trip the UC3843 over-current
+*  comparator (1.0V threshold) and shut down a healthy converter.
+*  The 1kΩ + 470pF filter creates a τ = 470ns time constant that absorbs
+*  this turn-on spike while still transmitting a genuine short-circuit
+*  signal within one 20kHz switching period (50µs).
+*
+*  SIMULATION SCOPE:
+*  A dead-short event is simulated as an instantaneous step from 0V to
+*  1.5V at the INA181 output at t=1µs. The time for the filtered signal
+*  to cross the 1.0V UC3843 trip threshold is measured.
+* =========================================================================
+
+V_INA181 INA_OUT 0 PULSE(0 1.5V 1us 10n 10n 10us 20us)
+
+* The RC Filter
+R_Filter INA_OUT UC_PIN3 1k
+C_Filter UC_PIN3 0 470p
+
+* High precision transient analysis
+.control
+  option reltol=0.01 abstol=1n vntol=1m
+  tran 2n 3us 0
+  wrdata rc_delay_results.txt v(INA_OUT) v(UC_PIN3)
+  quit
+.endc
+.end

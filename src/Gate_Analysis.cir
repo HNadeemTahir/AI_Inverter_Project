@@ -1,0 +1,69 @@
+* =========================================================================
+* GATE CAPACITANCE CHARGE/DISCHARGE ANALYSIS
+* 4kW MPPT Booster: Asymmetric Gate Drive Network
+* =========================================================================
+* Purpose: Transient analysis of gate voltage RC characteristics (G1/G2).
+* Simulation: 500us total, 10ns resolution for high-fidelity RC modeling.
+* =========================================================================
+
+.include ../models/STGW60H65DFB.lib
+.include ../models/STTH3006D.lib
+.include ../models/FOD3150.sub
+.include ../models/UC3843_Behavioral.sub
+
+.PARAM V_IN = 250.0
+.PARAM R_LOAD = 40.0
+
+* POWER STAGE (Same as master design)
+V_PV IN_NODE 0 DC {V_IN}
+C_IN IN_NODE 0 470u 
+L1 IN_NODE L1_MID 200u
+R_L1 L1_MID BOOST_NODE 0.05
+
+* Parallel IGBTs
+XQ1 BOOST_NODE G1 EMITTER STGW60H65DFB
+XQ2 BOOST_NODE G2 EMITTER STGW60H65DFB
+R_SHUNT EMITTER 0 0.01
+
+* Asymmetric Gate Drive Network
+* Turn-ON:  15 Ohm path (di/dt limitation and reverse recovery control)
+* Turn-OFF: 5.6 Ohm + 1N4148 diode path (Miller effect suppression)
+R1_ON  DRV G1    15
+D1_OFF DRV G1_D  D1N4148
+R1_OFF G1  G1_D  5.6
+
+R2_ON  DRV G2    15
+D2_OFF DRV G2_D  D1N4148
+R2_OFF G2  G2_D  5.6
+
+.MODEL D1N4148 D(Is=2.682n tt=10n)
+
+* Parasitic Modeling / Solver Convergence
+C_STAB1 G1 0 1n
+C_STAB2 G2 0 1n
+
+* Output Stage
+D1 BOOST_NODE V_OUT STTH3006D
+C_OUT V_OUT 0 880u IC=250
+R_LOAD_VAL V_OUT 0 {R_LOAD}
+
+* UC3843 CONTROL
+V_VCC AUX_VCC 0 DC 15V
+X1 CP FB EMITTER OSC 0 PWM_SIG AUX_VCC V_REF UC3843
+
+R_F1 V_OUT FB 150k
+R_F2 FB 0 1k
+
+X_FOD PWM_SIG 0 0 DRV AUX_VCC FOD3150
+
+* =========================================================================
+* HIGH-RESOLUTION TRANSIENT ANALYSIS
+* tran [output_step] [stop_time] [start_time] [max_internal_step]
+* =========================================================================
+.control
+  option reltol=0.02 abstol=1n vntol=1m 
+  tran 10n 500u 0 1n uic
+  wrdata gate_analysis_results.txt v(G1) v(G2) v(DRV) v(PWM_SIG) v(EMITTER)
+  quit
+.endc
+.end

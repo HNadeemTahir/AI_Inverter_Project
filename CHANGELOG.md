@@ -4,6 +4,21 @@ All notable changes to this project are documented in this file.
 
 ---
 
+## [V9.0] - 2026-04-27 (UC3843 Analog Control Loop Integration)
+- Added closed-loop UC3843 peak-current-mode control netlist (`src/MPPT_Booster_UC3843.cir`)
+- Implemented and validated KCL summing node: dsPIC OC1 PWM shifts 380V target between 311V and 443V
+- Proved cold-boot safety mechanism: 10kΩ pull-up forces Pin 2 above 2.50V trip threshold during MCU startup
+- Simulated and validated 4-point duty cycle sweep (25%/50%/75%/100%) confirming active-low MPPT control law
+- Added high-resolution gate capacitance charge/discharge analysis (`src/Gate_Analysis.cir`)
+- Characterized Miller Plateau on STGW60H65DFB: threshold at 6.0V, plateau at ~9V, saturation at 15V
+- Validated asymmetric gate drive time constants: τ_ON = 300ns (15Ω), τ_OFF = 112ns (5.6Ω + 1N4148)
+- Added Leading Edge Blanking filter analysis (`src/RC_Filter_Test.cir`)
+- Measured 470ns propagation delay of 1kΩ + 470pF LEB filter — masks IGBT turn-on transient noise
+- Added 4 new automated Python analysis scripts with dark-background Matplotlib dashboards
+- Added UC3843 Hardware Design Guide (`docs/UC3843_Hardware_Design_Guide.md`)
+- Added INA181A2 Hardware Design Guide (`docs/INA181A2_Hardware_Design_Guide.md`)
+- Updated project structure: 6 source netlists, 6 Python runners, 24 result graphs
+
 ## [V8.0] - 2026-04-21 (4kW MPPT Boost Converter)
 - Added complete 4kW MPPT DC-DC boost converter simulation (`src/MPPT_Booster.cir`)
 - Feed-forward + PI control architecture for 120V–350V PV input to 380V DC bus

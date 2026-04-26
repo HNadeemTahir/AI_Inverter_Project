@@ -1,0 +1,60 @@
+* =========================================================================
+*  MPPT SUMMING NODE PHYSICS — dsPIC30F2010 → UC3843 Pin 2 Interface
+*  Version 9.0
+* =========================================================================
+*  Author      : Nadeem Tahir (Embedded Systems & Power Electronics Engineer)
+*  Tools       : NgSpice 46 (Windows 64-bit)
+*  Date        : 27 April 2026
+*  Hardware    : dsPIC30F2010 OC1 → 10kΩ/4.7µF RC Filter → UC3843 Pin 2
+* -------------------------------------------------------------------------
+*  PURPOSE:
+*  Validates the KCL-balanced voltage summing node that interfaces the
+*  dsPIC30F2010 digital MPPT algorithm with the UC3843 analog controller.
+*  Three current paths meet at Pin 2:
+*    1. 380V Bus  → 1.5MΩ resistor   (hardware voltage regulation)
+*    2. Ground    → 10kΩ resistor    (hardware lower clamp)
+*    3. dsPIC OC1 → 47kΩ resistor    (MPPT setpoint injection)
+*
+*  CONTROL LAW (Active-Low):
+*  Decreasing PWM duty cycle → lower Pin 2 voltage → UC3843 boosts harder.
+*  Increasing PWM duty cycle → Pin 2 rises above 2.50V → UC3843 shuts down.
+*
+*  BOOT-UP SAFETY:
+*  The 10kΩ pull-up to +5V ensures Pin 2 defaults to a safe HIGH state
+*  (~2.51V) while the dsPIC is booting or in high-impedance, preventing
+*  the UC3843 from firing at maximum duty cycle during a cold start.
+*
+*  SIMULATION SCOPE:
+*  This netlist is modified by run_summing_node.py in a 4-point sweep:
+*  25%, 50%, 75%, and 100% dsPIC OC1 duty cycle.
+* =========================================================================
+
+* 1. The Power Supplies
+V_5V MCU_5V 0 DC 5
+V_BUS HV_380V 0 DC 380
+
+* 2. The dsPIC PWM Output (20kHz, 25% Duty Cycle)
+* Period = 50us. 25% Duty = 12.5us High, 37.5us Low. Average = 1.25V.
+V_DSPIC OC1_PIN 0 PULSE(0 5 0 10n 10n 12.5u 50u)
+
+* 3. The Boot-Up Safety Pull-Up
+R_PULLUP OC1_PIN MCU_5V 10k
+
+* 4. The RC Filter
+R_FILTER OC1_PIN FILTER_OUT 10k
+C_FILTER FILTER_OUT 0 1uF
+
+* 5. The Injection Resistor
+R_INJECT FILTER_OUT PIN2_VFB 47k
+
+* 6. The 380V Hardware Divider
+R_HV HV_380V PIN2_VFB 1.5Meg
+R_GND PIN2_VFB 0 10k
+
+.tran 10us 40ms
+
+.control
+run
+wrdata summing_node_data.txt v(OC1_PIN) v(FILTER_OUT) v(PIN2_VFB)
+.endc
+.end

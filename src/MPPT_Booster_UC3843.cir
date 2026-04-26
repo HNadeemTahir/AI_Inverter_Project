@@ -1,0 +1,77 @@
+* =========================================================================
+*  4kW MPPT DC-DC BOOST CONVERTER — UC3843 Closed-Loop Control
+*  Version 9.0
+* =========================================================================
+*  Author      : Nadeem Tahir (Embedded Systems & Power Electronics Engineer)
+*  Tools       : NgSpice 46 (Windows 64-bit)
+*  Date        : 27 April 2026
+*  Hardware    : UC3843 → FOD3150 → 2× STGW60H65DFB (parallel) → STTH3006D
+* -------------------------------------------------------------------------
+*  PURPOSE:
+*  Full closed-loop transient simulation of the 4kW MPPT boost converter
+*  using the UC3843 peak-current-mode PWM controller. The UC3843 drives
+*  two parallel 650V/60A IGBTs through a FOD3150 optocoupled gate driver
+*  with an asymmetric 15Ω/5.6Ω gate resistance network.
+*
+*  POWER STAGE:
+*  V_PV (120–350V) → 200µH Inductor → Parallel IGBTs → STTH3006D → 380V Bus
+*
+*  CONTROL LOOP:
+*  Output voltage is sensed by a 150kΩ/1kΩ resistive divider into UC3843
+*  Pin 2 (VFB). The UC3843 internal error amplifier regulates the duty
+*  cycle to maintain 380V on the DC bus.
+* =========================================================================
+
+.include ../models/STGW60H65DFB.lib
+.include ../models/STTH3006D.lib
+.include ../models/FOD3150.sub
+.include ../models/UC3843_Behavioral.sub
+
+.PARAM V_IN = 250.0
+.PARAM R_LOAD = 40.0
+
+* POWER STAGE
+V_PV IN_NODE 0 DC {V_IN}
+C_IN IN_NODE 0 470u 
+L1 IN_NODE L1_MID 200u
+R_L1 L1_MID BOOST_NODE 0.05
+
+* Parallel IGBTs
+XQ1 BOOST_NODE G1 EMITTER STGW60H65DFB
+XQ2 BOOST_NODE G2 EMITTER STGW60H65DFB
+R_SHUNT EMITTER 0 0.01
+
+* Asymmetric Gate Drive Network
+R1_ON  DRV G1 15
+D1_OFF DRV G1_D D1N4148
+R1_OFF G1 G1_D 5.6
+R2_ON  DRV G2 15
+D2_OFF DRV G2_D D1N4148
+R2_OFF G2 G2_D 5.6
+.MODEL D1N4148 D(Is=2.682n tt=10n)
+
+* Parasitic Modeling / Solver Convergence
+C_STAB1 G1 0 1n
+C_STAB2 G2 0 1n
+
+D1 BOOST_NODE V_OUT STTH3006D
+C_OUT V_OUT 0 880u IC=250
+R_LOAD_VAL V_OUT 0 {R_LOAD}
+
+* UC3843 CONTROL
+V_VCC AUX_VCC 0 DC 15V
+X1 CP FB EMITTER OSC 0 PWM_SIG AUX_VCC V_REF UC3843
+
+R_F1 V_OUT FB 150k
+R_F2 FB 0 1k
+
+X_FOD PWM_SIG 0 0 DRV AUX_VCC FOD3150
+
+.control
+  option reltol=0.04 abstol=10n vntol=10m 
+  tran 20u 60ms 0 1u uic
+  plot v(V_OUT)
+  wrdata uc3843_results.txt v(V_OUT) i(L1) v(PWM_SIG)
+  quit
+.endc
+.end
