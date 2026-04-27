@@ -289,9 +289,7 @@ Foster RC network mapping power dissipation to junction temperature. Standard po
 │
 ├── docs/
 │   ├── thermal_equivalent_circuit.png
-│   ├── MPPT_Booster_Engineering_Report.md
-│   ├── UC3843_Hardware_Design_Guide.md
-│   └── INA181A2_Hardware_Design_Guide.md
+│   └── MPPT_Booster_Engineering_Report.md
 │
 ├── results/                           # Waveform graphs (numbered by version)
 │   ├── 01–13_*.png                    # H-Bridge analysis series
@@ -403,11 +401,9 @@ python predict.py               # Instant performance predictor CLI
 
 ## Engineering Documentation
 
-| Document                                                                     | Description                                                |
-|:-----------------------------------------------------------------------------|:-----------------------------------------------------------|
-| [MPPT Booster Engineering Report](docs/MPPT_Booster_Engineering_Report.md)   | Full booster design report, firmware C ref, HW checklist   |
-| [UC3843 Hardware Design Guide](docs/UC3843_Hardware_Design_Guide.md)         | Pin-by-pin wiring, slope comp, summing node KCL math       |
-| [INA181A2 Hardware Design Guide](docs/INA181A2_Hardware_Design_Guide.md)     | Current sense amplifier, LEB filter design                 |
+| Document                                                                     | Description                                                     |
+|:-----------------------------------------------------------------------------|:----------------------------------------------------------------|
+| [MPPT Booster Engineering Report](docs/MPPT_Booster_Engineering_Report.md)   | Booster design report, controller parameters, HW checklist      |
 
 ---
 
