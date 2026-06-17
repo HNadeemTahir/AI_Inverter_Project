@@ -4,6 +4,14 @@ All notable changes to this project are documented in this file.
 
 ---
 
+## [V10.0] - 2026-06-17 (Hardware PCB — KiCad Integration)
+- Added complete KiCad 9.0 PCB layout for 4kW MPPT booster control board (`hardware/kicad/`)
+- Board passes Design Rule Check (DRC) — see `hardware/kicad/DRC.rpt`
+- Added 3D renders of assembled PCB (`hardware/renders/`)
+- Integrated hardware engineering documentation: BOM, inductor calculations, UC3843 and INA181A2 design guides
+- Updated README to present full simulation-to-hardware engineering lifecycle
+- Marked KiCad PCB roadmap item as complete
+
 ## [V9.0] - 2026-04-27 (UC3843 Analog Control Loop Integration)
 - Added closed-loop UC3843 peak-current-mode control netlist (`src/MPPT_Booster_UC3843.cir`)
 - Implemented and validated KCL summing node: dsPIC OC1 PWM shifts 380V target between 311V and 443V

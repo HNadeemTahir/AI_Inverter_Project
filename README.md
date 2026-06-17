@@ -1,13 +1,19 @@
-# Solar Inverter & MPPT Booster — NgSpice Digital Twin
+# Solar Inverter & MPPT Booster — Simulation to Hardware
 
-High-fidelity SPICE simulation of a complete off-grid solar power system, developed in phases as a structured R&D engineering study. Each version targets a specific engineering challenge — from basic switching to full analog-digital control loop integration.
+![4kW MPPT Booster PCB — KiCad 3D Render](hardware/renders/1_kicad_3d_render.png)
 
-The project covers two major power conversion stages:
+NgSpice simulation and KiCad PCB design of a complete off-grid solar power system. The simulation uses manufacturer SPICE models (not ideal switches) and translates dsPIC30F2010 firmware logic into behavioral equations so the control loops can be validated before building hardware.
+
+Two power conversion stages, developed across 10 versions:
 
 1. **H-Bridge Inverter** — Single-phase 220V/50Hz pure sine wave output using FGY75T120SWD IGBTs, unipolar SPWM, closed-loop PI voltage regulation, electro-thermal monitoring, and hardware fault protection.
 2. **4kW MPPT Boost Converter** — DC-DC front-end regulating a variable 120V–350V PV string to a stable 380V DC bus, controlled by a UC3843 analog controller slaved to a dsPIC30F2010 MCU.
 
-All simulations use manufacturer-provided SPICE models and translate physical dsPIC30F2010 firmware logic directly into SPICE behavioral equations for pre-silicon hardware validation.
+---
+
+## Note on Methodology
+
+The workflow here — simulate with real device models, sweep parameters with Python, train a surrogate model, then route the PCB — is not specific to boost converters. The same approach works for any power stage where you need to predict switching losses and thermal behavior before committing to hardware. I have used variations of this on inverter gate drives, motor current loops, and industrial servo tuning.
 
 ---
 
@@ -25,7 +31,36 @@ All simulations use manufacturer-provided SPICE models and translate physical ds
 | V6.5     | Modulation Benchmark     | THI + Dead-Time compensation matrix                  |
 | V7.0     | Surrogate Model          | Scikit-Learn Random Forest predictor                 |
 | V8.0     | 4kW MPPT Converter       | Feed-forward + PI boost, 3 test profiles             |
-| **V9.0** | **UC3843 Control Loop**  | **Analog-digital MPPT integration, gate physics**    |
+| V9.0     | UC3843 Control Loop      | Analog-digital MPPT integration, gate physics        |
+| **V10.0**| **Hardware PCB**         | **KiCad layout, DRC-clean, 3D-verified**             |
+
+---
+
+## Hardware Implementation (KiCad)
+
+The 4kW MPPT booster control board, designed in KiCad 9.0. DRC-clean. The schematic and layout match the UC3843 + dsPIC control architecture from V8.0 and V9.0 simulations.
+
+### PCB 3D Render — Component Side
+![PCB Top View](hardware/renders/1_kicad_3d_render.png)
+
+### PCB 3D Render — Isometric View
+![PCB Isometric](hardware/renders/2_kicad_3d+render.png)
+
+### Hardware Design Files
+
+| File | Description |
+|:-----|:------------|
+| [`MPPT_Booster_4kW_Hardware.kicad_pro`](hardware/kicad/MPPT_Booster_4kW_Hardware.kicad_pro) | KiCad 9.0 project file |
+| [`MPPT_Booster_4kW_Hardware.kicad_sch`](hardware/kicad/MPPT_Booster_4kW_Hardware.kicad_sch) | Full schematic (UC3843 + dsPIC + gate drivers + current sensing) |
+| [`MPPT_Booster_4kW_Hardware.kicad_pcb`](hardware/kicad/MPPT_Booster_4kW_Hardware.kicad_pcb) | PCB layout with copper pours, clearance rules, and thermal relief |
+| [`DRC.rpt`](hardware/kicad/DRC.rpt) | Design Rule Check report |
+
+### Key Layout Decisions
+
+- **High-current paths** (inductor → IGBT → diode → output caps) use wide copper pours with thermal relief pads to handle 20A+ continuous current
+- **Gate driver isolation** — FOD3150 optoisolators provide galvanic separation between the dsPIC logic ground and the power stage ground
+- **Current sensing** — INA181A2 shunt amplifier placed directly adjacent to the sense resistor to minimize noise pickup
+- **Analog control section** — UC3843, slope compensation network, and RC timing components grouped together with short trace runs
 
 ---
 
@@ -39,6 +74,7 @@ This version implements the hardware-level control architecture of the 4kW MPPT 
 |:---------------------------------------|:------------------------------------------------------|:----------:|
 | Analog-digital MPPT interface          | KCL summing node on UC3843 Pin 2                      | ✅ Proven  |
 | Cold-boot explosion prevention         | 10kΩ pull-up on dsPIC OC1 PWM line                    | ✅ Proven  |
+| Precharge relay MCU isolation          | 2N2222 NPN driving 40A contactor coil                 | ✅ Proven  |
 | Sub-harmonic oscillation fix           | 2N3904 NPN emitter-follower slope compensation        | ✅ Proven  |
 | 100ns turn-on noise rejection          | 1kΩ + 470pF LEB filter on UC3843 Pin 3                | ✅ Proven  |
 | IGBT Miller plateau characterization   | Asymmetric gate drive: 15Ω ON / 5.6Ω+D OFF            | ✅ Proven  |
@@ -271,50 +307,52 @@ Foster RC network mapping power dissipation to junction temperature. Standard po
 ## Project Structure
 
 ```
+├── hardware/
+│   ├── kicad/                             # KiCad 9.0 project, schematic, and PCB layout
+│   │   ├── MPPT_Booster_4kW_Hardware.kicad_pro
+│   │   ├── MPPT_Booster_4kW_Hardware.kicad_sch
+│   │   ├── MPPT_Booster_4kW_Hardware.kicad_pcb
+│   │   └── DRC.rpt
+│   └── renders/                           # 3D PCB screenshots
+│
 ├── models/
-│   ├── FGY75T120SWD.lib              # onsemi 1200V/75A IGBT (inverter)
-│   ├── tlp250h.sub                   # TLP250H gate driver (inverter)
-│   ├── STGW60H65DFB.lib              # ST 650V/60A IGBT (booster)
-│   ├── STTH3006D.lib                 # ST fast-recovery boost diode
-│   ├── FOD3150.sub                   # FOD3150 gate driver (booster)
-│   └── UC3843_Behavioral.sub         # UC3843 controller model
+│   ├── FGY75T120SWD.lib                   # onsemi 1200V/75A IGBT (inverter)
+│   ├── tlp250h.sub                        # TLP250H gate driver (inverter)
+│   ├── STGW60H65DFB.lib                   # ST 650V/60A IGBT (booster)
+│   ├── STTH3006D.lib                      # ST fast-recovery boost diode
+│   ├── FOD3150.sub                        # FOD3150 gate driver (booster)
+│   └── UC3843_Behavioral.sub              # UC3843 controller model
 │
 ├── src/
-│   ├── H_Bridge_Full.cir             # Inverter master netlist (V6.5)
-│   ├── MPPT_Booster.cir              # Booster — feed-forward PI (V8.0)
-│   ├── MPPT_Booster_UC3843.cir       # Booster — UC3843 closed-loop (V9.0)
-│   ├── Gate_Analysis.cir             # Gate RC charge/discharge (V9.0)
-│   ├── Summing_Node_Test.cir         # KCL summing node sweep (V9.0)
-│   └── RC_Filter_Test.cir            # LEB 470ns delay test (V9.0)
+│   ├── H_Bridge_Full.cir                  # Inverter master netlist (V6.5)
+│   ├── MPPT_Booster.cir                   # Booster — feed-forward PI (V8.0)
+│   ├── MPPT_Booster_UC3843.cir            # Booster — UC3843 closed-loop (V9.0)
+│   ├── Gate_Analysis.cir                  # Gate RC charge/discharge (V9.0)
+│   ├── Summing_Node_Test.cir              # KCL summing node sweep (V9.0)
+│   └── RC_Filter_Test.cir                 # LEB 470ns delay test (V9.0)
 │
 ├── docs/
-│   ├── thermal_equivalent_circuit.png
-│   └── MPPT_Booster_Engineering_Report.md
+│   ├── MPPT_Booster_Engineering_Report.md
+│   ├── MPPT_Booster_BOM_Purchasing_List.md
+│   ├── Boost_Inductor_Design_Calculations.md
+│   ├── UC3843_Hardware_Design_Guide.md
+│   ├── INA181A2_Hardware_Design_Guide.md
+│   └── thermal_equivalent_circuit.png
 │
-├── results/                           # Waveform graphs (numbered by version)
-│   ├── 01–13_*.png                    # H-Bridge analysis series
-│   ├── 14_modulation_benchmark.png
-│   ├── 15_ai_surrogate_accuracy.png
-│   ├── 16_instant_predictor.png
-│   ├── 17–19_mppt_booster_*.png       # MPPT 3-profile series (V8.0)
-│   ├── 20_Rc Filter Propagation Delay.png
-│   ├── 21_MPPT_Summing_Node.png
-│   ├── 22_MPPT Dc-Dc_UC3843.png
-│   └── 23_Asymmetric_Gate_Drive.png
+├── results/                                # Waveform graphs (numbered by version)
 │
-├── run_simulation.py                  # Inverter: single-run executor
-├── run_mppt_sim.py                    # Booster: 3-profile sweep
-├── run_mppt_uc3843.py                 # UC3843 closed-loop booster (V9.0)
-├── run_gate_analysis.py               # Gate charge/discharge (V9.0)
-├── run_summing_node.py                # Summing node sweep (V9.0)
-├── run_rc_filter.py                   # LEB filter delay (V9.0)
-├── data_factory.py                    # Parametric sweep (204 sims)
-├── train_ai.py                        # Surrogate model training
-├── evaluate_ai.py                     # Parity plot evaluation
-├── predict.py                         # Instant CLI predictor
-├── analyze_results.py                 # Modulation comparison
-├── inverter_ai_model.pkl              # Trained model binary
-├── Run_Inverter.bat                   # Quick-launch (interactive)
+├── run_simulation.py                       # Inverter: single-run executor
+├── run_mppt_sim.py                         # Booster: 3-profile sweep
+├── run_mppt_uc3843.py                      # UC3843 closed-loop booster (V9.0)
+├── run_gate_analysis.py                    # Gate charge/discharge (V9.0)
+├── run_summing_node.py                     # Summing node sweep (V9.0)
+├── run_rc_filter.py                        # LEB filter delay (V9.0)
+├── data_factory.py                         # Parametric sweep (204 sims)
+├── train_ai.py                             # Surrogate model training
+├── evaluate_ai.py                          # Parity plot evaluation
+├── predict.py                              # Instant CLI predictor
+├── analyze_results.py                      # Modulation comparison
+├── inverter_ai_model.pkl                   # Trained model binary
 ├── CHANGELOG.md
 └── README.md
 ```
@@ -325,6 +363,7 @@ Foster RC network mapping power dissipation to junction temperature. Standard po
 
 ### Requirements
 - [NgSpice](https://ngspice.sourceforge.io/) v44 or later (Windows 64-bit)
+- [KiCad](https://www.kicad.org/) 9.0 or later (for hardware files)
 - Python 3.10 or later
 - `pip install matplotlib numpy scikit-learn`
 
@@ -394,21 +433,29 @@ python predict.py               # Instant performance predictor CLI
 - [x] KCL summing node — dsPIC PWM MPPT injection with boot-up safety
 - [x] Asymmetric gate drive characterization — Miller plateau analysis
 - [x] Leading Edge Blanking — 470ns INA181 filter delay validation
-- [ ] KiCad PCB layout — booster control board
-- [ ] Hardware prototype validation against simulation results
+- [x] KiCad PCB layout — booster control board (DRC-clean)
+- [ ] Hardware prototype assembly and bench validation against simulation
+- [ ] Simulation-vs-hardware correlation report
 
 ---
 
 ## Engineering Documentation
 
-| Document                                                                     | Description                                                     |
-|:-----------------------------------------------------------------------------|:----------------------------------------------------------------|
-| [MPPT Booster Engineering Report](docs/MPPT_Booster_Engineering_Report.md)   | Booster design report, controller parameters, HW checklist      |
+| Document | Description |
+|:---------|:------------|
+| [MPPT Booster Engineering Report](docs/MPPT_Booster_Engineering_Report.md) | Full design report, controller parameters, firmware reference |
+| [Bill of Materials](docs/MPPT_Booster_BOM_Purchasing_List.md) | Component purchasing list with supplier references |
+| [Boost Inductor Calculations](docs/Boost_Inductor_Design_Calculations.md) | Core selection, winding calculations, saturation analysis |
+| [UC3843 Hardware Guide](docs/UC3843_Hardware_Design_Guide.md) | Oscillator timing, slope compensation, pin-by-pin design |
+| [INA181A2 Hardware Guide](docs/INA181A2_Hardware_Design_Guide.md) | Current sense amplifier design and PCB layout guidelines |
 
 ---
 
 ## Author
 
-**Nadeem Tahir** — Embedded Systems and Power Electronics Engineer
+**Nadeem Tahir**
 
-Designs and validates production-grade inverters and motor drives from component selection through firmware. Hardware platforms: dsPIC30F2010, PIC, STM32, ESP32. Simulation tools: NgSpice, Python/Matplotlib.
+I have been designing and commissioning inverters, motor drives, and PLC-based industrial machines for 13 years. This project started as a way to validate my booster design before ordering PCBs, and grew into a simulation platform I now use across projects. I am working toward an MS/PhD in robotics and intelligent control.
+
+Hardware: dsPIC30F2010, PIC, STM32, ESP32, Delta AS228T PLC.
+Tools: NgSpice, KiCad, Python, Matplotlib, Scikit-Learn.
